@@ -26,18 +26,6 @@
          net.bridge.bridge-nf-call-ip6tables = 1
          net.bridge.bridge-nf-call-iptables = 1
 
-#   - name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
-#     sysctl:
-#      name: net.bridge.bridge-nf-call-ip6tables
-#      value: 1
-#      state: present
-
-#   - name: ensure net.bridge.bridge-nf-call-iptables is set to 1
-#     sysctl:
-#      name: net.bridge.bridge-nf-call-iptables
-#      value: 1
-#      state: present
-
    - name: running sysctl --system command
      become: yes
      command:
@@ -64,7 +52,6 @@
        url: https://raw.githubusercontent.com/andrew-d/static-binaries/master/binaries/linux/x86_64/nano
        dest: /opt/bin
        mode: 0755
-
 
    - name: Download CNI using get_url
      become: yes
@@ -131,12 +118,9 @@
        cmd: systemctl enable --now kubelet
      register: __output
 
-#   - name: reboot ALL machines
- #    reboot:
-
- #  - name: run kubeadm reset
- #    command: kubeadm reset --force
-
+   - name: reboot ALL machines
+     reboot:
+     
    - name: running restart kubelet command
      become: yes
      command:
