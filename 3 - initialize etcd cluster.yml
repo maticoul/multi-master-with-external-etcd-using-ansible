@@ -1,0 +1,231 @@
+- name: Create three subdirectories
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: creating kubernetes directory
+      file:
+        path: /tmp/etcd03/pki/etcd
+        state: directory
+        owner: securiport
+        group: securiport
+        mode: "0755"
+
+    - name: creating kubernetes directory
+      file:
+        path: /tmp/etcd02/pki/etcd
+        state: directory
+        owner: securiport
+        group: securiport
+        mode: "0755"
+
+- name: Copy certs to controller
+  hosts: etcd01
+  vars:
+    HOST0: 192.168.40.60
+    HOST1: 192.168.40.61
+    HOST2: 192.168.40.62
+  tasks:
+    - name: Copy kubeadmcfg.yaml to controller
+      fetch:
+        src: /tmp/{{ HOST2 }}/kubeadmcfg.yaml
+        dest: /tmp/etcd03/
+        flat: yes
+
+    - name: Copy apiserver-etcd-client.crt
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/apiserver-etcd-client.crt
+        dest: /tmp/etcd03/pki/
+        flat: yes
+
+    - name: copy apiserver-etcd-client.key
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/apiserver-etcd-client.key
+        dest: /tmp/etcd03/pki/
+        flat: yes
+
+    - name: copy ca.crt
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/ca.crt
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy ca.key
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/ca.key
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy healthcheck-client.crt
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/healthcheck-client.crt
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy healthcheck-client.key
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/healthcheck-client.key
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy peer.crt
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/peer.crt
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy peer.key
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/peer.key
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy server.crt
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/server.crt
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy server.key
+      fetch:
+        src: /tmp/{{ HOST2 }}/pki/etcd/server.key
+        dest: /tmp/etcd03/pki/etcd/
+        flat: yes
+
+    - name: copy kubeadmcfg.yaml
+      fetch:
+        src: /tmp/{{ HOST1 }}/kubeadmcfg.yaml
+        dest: /tmp/etcd02/
+        flat: yes
+
+    - name: copy apiserver-etcd-client.crt
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/apiserver-etcd-client.crt
+        dest: /tmp/etcd02/pki/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/apiserver-etcd-client.key
+        dest: /tmp/etcd02/pki/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/ca.crt
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/healthcheck-client.crt
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/healthcheck-client.key
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/peer.crt
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/peer.key
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/server.crt
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+    - name: Create directory sub1
+      fetch:
+        src: /tmp/{{ HOST1 }}/pki/etcd/server.key
+        dest: /tmp/etcd02/pki/etcd/
+        flat: yes
+
+- name: pki directory
+  hosts: etcd02
+  become: yes
+  tasks:
+    - name: creating kubernetes directory
+      file:
+        path: /etc/kubernetes
+        state: directory
+        mode: '0755'
+    - name: Create directory sub1
+      copy:
+        src: /tmp/etcd02/pki
+        dest: /etc/kubernetes/
+        mode: '0755'
+
+    - name: change pki groupe own
+      file:
+        path: /etc/kubernetes/pki
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create directory sub1
+      copy:
+        src: /tmp/etcd02/kubeadmcfg.yaml
+        dest: /home/securiport/
+        mode: '0755'
+
+- name: pki directory
+  hosts: etcd03
+  become: yes
+  tasks:
+    - name: creating kubernetes directory
+      file:
+        path: /etc/kubernetes
+        state: directory
+        mode: '0755'
+
+    - name: Create directory sub1
+      copy:
+        src: /tmp/etcd03/pki
+        dest: /etc/kubernetes/
+        mode: '0755'
+
+    - name: change pki groupe own
+      file:
+        path: /etc/kubernetes/pki
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create directory sub1
+      copy:
+        src: /tmp/etcd03/kubeadmcfg.yaml
+        dest: /home/securiport/
+        mode: '0755'
+
+- name: pki directory
+  vars:
+    HOST0: 192.168.40.88
+  hosts: etcd01
+  tasks:
+    - name: init phase etcd local etcd01
+      shell: kubeadm init phase etcd local --config=/tmp/{{ HOST0 }}/kubeadmcfg.yaml
+
+- name: init phase etcd local etcd01
+  hosts: etcd02
+  gather_facts: false
+  tasks:
+    - name: init phase etcd local etcd02
+      shell: kubeadm init phase etcd local --config=/home/securiport/kubeadmcfg.yaml
+
+- name: init phase etcd local etcd03
+  hosts: etcd03
+  gather_facts: false
+  tasks:
+    - name: init phase etcd local etcd03
+      shell: kubeadm init phase etcd local --config=/home/securiport/kubeadmcfg.yaml

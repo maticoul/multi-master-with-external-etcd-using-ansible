@@ -1,0 +1,187 @@
+---
+- name: Generate kubeadmcfg.yaml
+  hosts: etcd
+  gather_facts: false
+  tasks:
+    - name: Creating kubeadmcfg.yaml file
+      copy:
+        content: |
+          [Service]
+          ExecStart=
+          # Replace "systemd" with the cgroup driver of your container runtime. The default value in the kubelet is "cgroupfs".
+          # Replace the value of "--container-runtime-endpoint" for a different container runtime if needed.
+          ExecStart=/opt/bin/kubelet --address=127.0.0.1 --pod-manifest-path=/etc/kubernetes/manifests --cgroup-driver=systemd --container-runtime=remote --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock
+          Restart=always
+        dest: "/etc/systemd/system/kubelet.service.d/20-etcd-service-manager.conf"
+
+    - name: activate kubelet
+      shell: |
+        systemctl daemon-reload
+        systemctl restart kubelet
+        systemctl status kubelet
+  
+- name: Mise à jour des adresses IP des hôtes HOST0, HOST1 et HOST2
+  hosts: etcd01
+  vars:
+    HOST0: 192.168.40.60
+    HOST1: 192.168.40.61
+    HOST2: 192.168.40.62
+    NAME0: etcd01
+    NAME1: etcd02
+    NAME2: etcd03
+    HOSTS:
+      - "{{ HOST0 }}"
+      - "{{ HOST1 }}"
+      - "{{ HOST2 }}"
+    NAMES:
+      - "{{ NAME0 }}"
+      - "{{ NAME1 }}"
+      - "{{ NAME2 }}"
+  tasks:
+    - name: Créer les répertoires temporaires
+      file:
+        path: "/tmp/{{ item }}"
+        state: directory
+      loop:
+        - "{{ HOST0 }}"
+        - "{{ HOST1 }}"
+        - "{{ HOST2 }}"
+      run_once: true
+    - name: Générer le fichier kubeadmcfg.yaml
+      copy:
+        dest: "/tmp/{{ item.host }}/kubeadmcfg.yaml"
+        content: |
+          ---
+          apiVersion: "kubeadm.k8s.io/v1beta3"
+          kind: InitConfiguration
+          nodeRegistration:
+              name: {{ item.name }}
+          localAPIEndpoint:
+              advertiseAddress: {{ item.host }}
+          ---
+          apiVersion: "kubeadm.k8s.io/v1beta3"
+          kind: ClusterConfiguration
+          etcd:
+              local:
+                  serverCertSANs:
+                  - "{{ item.host }}"
+                  peerCertSANs:
+                  - "{{ item.host }}"
+              extraArgs:
+                  initial-cluster: {{ NAMES[0] }}=https://{{ HOSTS[0] }}:2380,{{ NAMES[1] }}=https://{{ HOSTS[1] }}:2380,{{ NAMES[2] }}=https://{{ HOSTS[2] }}:2380
+                  initial-cluster-state: new
+                  name: {{ item.name }}
+                  listen-peer-urls: https://{{ item.host }}:2380
+                  listen-client-urls: https://{{ item.host }}:2379
+                  advertise-client-urls: https://{{ item.host }}:2379
+                  initial-advertise-peer-urls: https://{{ item.host }}:2380
+      loop:
+        - { host: "{{ HOST0 }}", name: "{{ NAME0 }}" }
+        - { host: "{{ HOST1 }}", name: "{{ NAME1 }}" }
+        - { host: "{{ HOST2 }}", name: "{{ NAME2 }}" }
+      run_once: true
+
+    - name: Initializing certs etcd-ca Kubernetes cluster
+      command: kubeadm init phase certs etcd-ca
+
+    - name: init phase certs etcd-server for etcd03
+      command: kubeadm init phase certs etcd-server --config=/tmp/{{ HOST2 }}/kubeadmcfg.yaml
+
+    - name: init phase certs etcd-peer for etcd03
+      command: kubeadm init phase certs etcd-peer --config=/tmp/{{ HOST2 }}/kubeadmcfg.yaml
+
+    - name: init phase certs etcd-healthcheck-client for etcd03
+      command: kubeadm init phase certs etcd-healthcheck-client --config=/tmp/{{ HOST2 }}/kubeadmcfg.yaml
+
+    - name: init phase certs apiserver-etcd-client for etcd03
+      command: kubeadm init phase certs apiserver-etcd-client --config=/tmp/{{ HOST2 }}/kubeadmcfg.yaml
+
+    - name: Copy certificates to /tmp/{{ HOST2 }}
+      command: cp -R /etc/kubernetes/pki /tmp/{{ HOST2 }}/
+
+    - name: find non-reusable certificates insite /etc/kubernetes/pki
+      find:
+        paths: /etc/kubernetes/pki
+        patterns: "*"
+        recurse: yes
+        file_type: file
+        excludes:
+          - ca.crt
+          - ca.key
+      register: files_to_delete
+
+    - name: cleanup non-reusable certificates insite /etc/kubernetes/pki
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
+
+    - name: init phase certs etcd-server for etcd02
+      command: kubeadm init phase certs etcd-server --config=/tmp/{{ HOST1 }}/kubeadmcfg.yaml
+
+    - name: init phase certs etcd-peer for etcd02
+      command: kubeadm init phase certs etcd-peer --config=/tmp/{{ HOST1 }}/kubeadmcfg.yaml
+
+    - name: init phase certs etcd-healthcheck-client for etcd02
+      command: kubeadm init phase certs etcd-healthcheck-client --config=/tmp/{{ HOST1 }}/kubeadmcfg.yaml
+
+    - name: init phase certs apiserver-etcd-client for etcd02
+      command: kubeadm init phase certs apiserver-etcd-client --config=/tmp/{{ HOST1 }}/kubeadmcfg.yaml
+
+    - name: Copy certificates to /tmp/{{ HOST1 }}
+      command: cp -R /etc/kubernetes/pki /tmp/{{ HOST1 }}/
+
+    - name: find non-reusable certificates insite /etc/kubernetes/pki
+      find:
+        paths: /etc/kubernetes/pki
+        patterns: "*"
+        recurse: yes
+        file_type: file
+        excludes:
+          - ca.crt
+          - ca.key
+      register: files_to_delete
+
+    - name: cleanup non-reusable certificates insite /etc/kubernetes/pki
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
+
+    - name: init phase certs etcd-server for etcd01
+      command: kubeadm init phase certs etcd-server --config=/tmp/{{ HOST0 }}/kubeadmcfg.yaml
+
+    - name: init phase certs etcd-peer for etcd01
+      command: kubeadm init phase certs etcd-peer --config=/tmp/{{ HOST0 }}/kubeadmcfg.yaml
+
+    - name: init phase certs etcd-healthcheck-client for etcd01
+      command: kubeadm init phase certs etcd-healthcheck-client --config=/tmp/{{ HOST0 }}/kubeadmcfg.yaml
+
+    - name: init phase certs apiserver-etcd-client for etcd01
+      command: kubeadm init phase certs apiserver-etcd-client --config=/tmp/{{ HOST0 }}/kubeadmcfg.yaml
+
+    - name: find clean up certs that should not be copied off this host
+      find:
+        paths: "/tmp/{{ HOST2 }}/pki"
+        patterns: "ca.key"
+        file_type: file
+      register: files_to_delete
+
+    - name: cleanup clean up certs that should not be copied off this host
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
+
+    - name: find clean up certs that should not be copied off this host
+      find:
+        paths: "/tmp/{{ HOST1 }}/pki"
+        patterns: "ca.key"
+        file_type: file
+      register: files_to_delete
+
+    - name: cleanup clean up certs that should not be copied off this host
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
