@@ -37,6 +37,9 @@
 - name: pki directory
   hosts: master01
   vars:
+    user: username
+    podSubnet: 192.168.0.0/16
+    clusterName: cluster name
     controlPlaneEndpoint: controlPlaneIP
     HOST0: etcd01IP
     HOST1: etcd02IP
@@ -81,7 +84,7 @@
           kind: ClusterConfiguration
           kubernetesVersion: stable
           networking:
-            podSubnet: 192.168.0.0/16
+            podSubnet: {{ podSubnet }}
           controlPlaneEndpoint: "{{ controlPlaneEndpoint }}:6443"
           etcd:
             external:
@@ -92,7 +95,7 @@
               caFile: /etc/kubernetes/pki/etcd/ca.crt
               certFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
               keyFile: /etc/kubernetes/pki/apiserver-etcd-client.key
-          clusterName: lab-cluster
+          clusterName: {{ clusterName }}
           controllerManager:
             extraArgs:
               flex-volume-plugin-dir: "/opt/libexec/kubernetes/kubelet-plugins/volume/exec/"
@@ -108,8 +111,8 @@
       file:
         path: $HOME/.kube
         state: directory
-        owner: securiport
-        group: securiport
+        owner: {{ user }}
+        group: {{ user }}
         mode: '0755'
 
     - name: copy file admin.conf
@@ -118,8 +121,8 @@
         src: /etc/kubernetes/admin.conf
         dest: $HOME/.kube/config
         remote_src: yes
-        owner: securiport
-        group: securiport
+        owner: {{ user }}
+        group: {{ user }}
         mode: '0755'
 
     - name: Creating calico configuracion file
