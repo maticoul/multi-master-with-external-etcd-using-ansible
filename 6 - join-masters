@@ -81,4 +81,4 @@
         mode: '0755'
 
     - name: join cluster
-      shell: "{{ hostvars['master01'].join_command }}  --ignore-preflight-errors all  >> masters_joined.txt"
+      shell: "{{ hostvars['master01'].join_command }} --control-plane  --ignore-preflight-errors all  >> masters_joined.txt"
