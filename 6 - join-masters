@@ -6,8 +6,8 @@
       file:
         path: /tmp/kubernetes/pki/etcd
         state: directory
-        owner: securiport
-        group: securiport
+        owner: user
+        group: user
         mode: "0755"
 
 - name: Copy certs to controller
@@ -82,3 +82,13 @@
 
     - name: join cluster
       shell: "{{ hostvars['master01'].join_command }} --control-plane  --ignore-preflight-errors all  >> masters_joined.txt"
+      
+- name: Join workers
+  hosts: workers
+  become: yes
+  tasks:
+    - name: join cluster
+      shell: "{{ hostvars['master01'].join_command }} --ignore-preflight-errors all  >> node_joined.txt"
+      args:
+        chdir: $HOME
+        creates: node_joined.txt
