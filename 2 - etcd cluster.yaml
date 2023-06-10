@@ -1,9 +1,9 @@
 ---
-- name: Generate kubeadmcfg.yaml
+- name: Generate 20-etcd-service-manager.conf
   hosts: etcd
   gather_facts: false
   tasks:
-    - name: Creating kubeadmcfg.yaml file
+    - name: Creating 20-etcd-service-manager.conf file
       copy:
         content: |
           [Service]
@@ -20,7 +20,7 @@
         systemctl restart kubelet
         systemctl status kubelet
   
-- name: Mise à jour des adresses IP des hôtes HOST0, HOST1 et HOST2
+- name: updates HOST0, HOST1 et HOST2
   hosts: etcd01
   vars:
     HOST0: 192.168.40.60
@@ -38,7 +38,7 @@
       - "{{ NAME1 }}"
       - "{{ NAME2 }}"
   tasks:
-    - name: Créer les répertoires temporaires
+    - name: Create temporary directory
       file:
         path: "/tmp/{{ item }}"
         state: directory
@@ -46,40 +46,55 @@
         - "{{ HOST0 }}"
         - "{{ HOST1 }}"
         - "{{ HOST2 }}"
-      run_once: true
-    - name: Générer le fichier kubeadmcfg.yaml
+
+    - name: Create kubeadmcfg.yaml file
       copy:
-        dest: "/tmp/{{ item.host }}/kubeadmcfg.yaml"
         content: |
           ---
           apiVersion: "kubeadm.k8s.io/v1beta3"
           kind: InitConfiguration
           nodeRegistration:
-              name: {{ item.name }}
+              name: {{ item }}
           localAPIEndpoint:
-              advertiseAddress: {{ item.host }}
+              advertiseAddress: {{ item }}
           ---
           apiVersion: "kubeadm.k8s.io/v1beta3"
           kind: ClusterConfiguration
           etcd:
               local:
                   serverCertSANs:
-                  - "{{ item.host }}"
+                  - "{{ item }}"
                   peerCertSANs:
-                  - "{{ item.host }}"
-              extraArgs:
-                  initial-cluster: {{ NAMES[0] }}=https://{{ HOSTS[0] }}:2380,{{ NAMES[1] }}=https://{{ HOSTS[1] }}:2380,{{ NAMES[2] }}=https://{{ HOSTS[2] }}:2380
-                  initial-cluster-state: new
-                  name: {{ item.name }}
-                  listen-peer-urls: https://{{ item.host }}:2380
-                  listen-client-urls: https://{{ item.host }}:2379
-                  advertise-client-urls: https://{{ item.host }}:2379
-                  initial-advertise-peer-urls: https://{{ item.host }}:2380
-      loop:
-        - { host: "{{ HOST0 }}", name: "{{ NAME0 }}" }
-        - { host: "{{ HOST1 }}", name: "{{ NAME1 }}" }
-        - { host: "{{ HOST2 }}", name: "{{ NAME2 }}" }
-      run_once: true
+                  - "{{ item }}"
+                  extraArgs:
+                      initial-cluster: {{ NAMES[0] }}=https://{{ HOSTS[0] }}:2380,{{ NAMES[1] }}=https://{{ HOSTS[1] }}:2380,{{ NAMES[2] }}=https://{{ HOSTS[2] }}:2380
+                      initial-cluster-state: new
+                      name: {{ item }}
+                      listen-peer-urls: https://{{ item }}:2380
+                      listen-client-urls: https://{{ item }}:2379
+                      advertise-client-urls: https://{{ item }}:2379
+                      initial-advertise-peer-urls: https://{{ item }}:2380
+        dest: "/tmp/{{ item }}/kubeadmcfg.yaml"
+      loop: "{{ HOSTS }}"
+      become: true
+
+    - name: Remplacer la valeur dans le fichier
+      replace:
+        path: /tmp/{{ HOST2 }}/kubeadmcfg.yaml
+        regexp: 'name: {{ HOST2 }}'
+        replace: 'name: {{ NAME2 }}'
+   
+    - name: Remplacer la valeur dans le fichier
+      replace:
+        path: /tmp/{{ HOST1 }}/kubeadmcfg.yaml
+        regexp: 'name: {{ HOST1 }}'
+        replace: 'name: {{ NAME1 }}'
+
+    - name: Remplacer la valeur dans le fichier
+      replace:
+        path: /tmp/{{ HOST0 }}/kubeadmcfg.yaml
+        regexp: 'name: {{ HOST0 }}'
+        replace: 'name: {{ NAME0 }}'
 
     - name: Initializing certs etcd-ca Kubernetes cluster
       command: kubeadm init phase certs etcd-ca
@@ -185,3 +200,109 @@
         path: "{{ item.path }}"
         state: absent
       with_items: "{{ files_to_delete.files }}"
+
+    - name: Archiver les fichiers PKI de Kubernetes etcd03
+      archive:
+        path: /tmp/{{ HOST2 }}/
+        dest: /tmp/{{ HOST2 }}/etcd03.tar
+
+    - name: Copier l'archive des fichiers PKI dans le controller
+      fetch:
+        src: /tmp/{{ HOST2 }}/etcd03.tar
+        dest: /home/securiport/
+        flat: yes
+
+    - name: Archiver les fichiers PKI de Kubernetes etcd02
+      archive:
+        path: /tmp/{{ HOST1 }}/
+        dest: /tmp/{{ HOST1 }}/etcd02.tar
+
+    - name: Copier l'archive des fichiers PKI dans le controller
+      fetch:
+        src: /tmp/{{ HOST1 }}/etcd02.tar
+        dest: /home/securiport/
+        flat: yes
+
+- name: pki directory
+  hosts: etcd03
+  become: yes
+  tasks:
+    - name: creating kubernetes directory
+      file:
+        path: /etc/kubernetes/
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copier l'archive des fichiers PKI dans le etcd03
+      copy:
+        src: /home/securiport/etcd03.tar
+        dest: /home/securiport/
+
+    - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
+      unarchive:
+        src:  /home/securiport/etcd03.tar
+        dest: /etc/kubernetes/
+
+    - name: Copy kubeadmcfg.yaml file
+      copy:
+        src: /etc/kubernetes/kubeadmcfg.yaml
+        dest: /home/securiport/
+        owner: securiport
+        group: securiport
+        remote_src: yes
+        mode: '0644'
+
+- name: pki directory
+  hosts: etcd02
+  become: yes
+  tasks:
+    - name: creating kubernetes directory
+      file:
+        path: /etc/kubernetes/
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copier l'archive des fichiers PKI dans le etcd03
+      copy:
+        src: /home/securiport/etcd02.tar
+        dest: /home/securiport/
+
+    - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
+      unarchive:
+        src:  /home/securiport/etcd02.tar
+        dest: /etc/kubernetes/
+
+    - name: Copy kubeadmcfg.yaml file
+      copy:
+        src: /etc/kubernetes/kubeadmcfg.yaml
+        dest: /home/securiport/
+        owner: securiport
+        group: securiport
+        remote_src: yes
+        mode: '0644'
+
+- name: pki directory
+  vars:
+    HOST0: 192.168.40.60
+  hosts: etcd01
+  tasks:
+    - name: init phase etcd local etcd01
+      shell: kubeadm init phase etcd local --config=/tmp/{{ HOST0 }}/kubeadmcfg.yaml
+
+- name: init phase etcd local etcd01
+  hosts: etcd02
+  gather_facts: false
+  tasks:
+    - name: init phase etcd local etcd02
+      shell: kubeadm init phase etcd local --config=/home/securiport/kubeadmcfg.yaml
+
+- name: init phase etcd local etcd03
+  hosts: etcd03
+  gather_facts: false
+  tasks:
+    - name: init phase etcd local etcd03
+      shell: kubeadm init phase etcd local --config=/home/securiport/kubeadmcfg.yaml
