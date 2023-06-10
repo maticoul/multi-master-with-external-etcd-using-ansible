@@ -80,33 +80,60 @@
        remote_src: yes
        mode: 0755
 
-   - name: Download  kubelet.service file
-     shell: >
-        curl -sSL "https://raw.githubusercontent.com/kubernetes/release/{{ RELEASE_VERSION }}/cmd/kubepkg/templates/latest/deb/kubelet/lib/systemd/system/kubelet.service" |
-        sed "s:/usr/bin:/opt/bin:g" |
-        tee /etc/systemd/system/kubelet.service
-        warn=False
+   - name: Download kubelet.service template
+     get_url:
+        url: "https://raw.githubusercontent.com/kubernetes/release/{{ RELEASE_VERSION }}/cmd/kubepkg/templates/latest/deb/kubelet/lib/systemd/system/kubelet.service"
+        dest: "/tmp/kubelet.service.template"
 
-   - name: Download 10-kubeadm.conf file
-     shell: >
-         curl -sSL "https://raw.githubusercontent.com/kubernetes/release/{{ RELEASE_VERSION }}/cmd/kubepkg/templates/latest/deb/kubeadm/10-kubeadm.conf" |
-         sed "s:/usr/bin:/opt/bin:g" |
-         tee /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-         warn=False
+   - name: Modify kubelet.service template
+     replace:
+        path: "/tmp/kubelet.service.template"
+        regexp: '/usr/bin'
+        replace: '{{ DOWNLOAD_DIR }}'
 
-   - name: Downloading kubeadm,kubelet,kubectl
-     shell: >
-         curl -sSL --remote-name-all https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
-         warn=False
+   - name: Copy modified kubelet.service to systemd directory
+     copy:
+        src: "/tmp/kubelet.service.template"
+        dest: "/etc/systemd/system/kubelet.service"
+        mode: '+x'
+        remote_src: yes
 
-   - name: Downloading kubeadm,kubelet,kubectl
-     shell: >
-         chmod +x {kubeadm,kubelet,kubectl}
+   - name: Download kubeadm.conf template
+     get_url:
+        url: "https://raw.githubusercontent.com/kubernetes/release/v0.4.0/cmd/kubepkg/templates/latest/deb/kubeadm/10-kubeadm.conf"
+        dest: "/tmp/10-kubeadm.conf.template"
 
-   - name: Downloading kubeadm,kubelet,kubectl
-     shell: >
-         mv {kubeadm,kubelet,kubectl} {{ DOWNLOAD_DIR }}
+   - name: Modify kubeadm.conf template
+     replace:
+        path: "/tmp/10-kubeadm.conf.template"
+        regexp: '/usr/bin'
+        replace: '{{ DOWNLOAD_DIR }}'
 
+   - name: Copy modified kubeadm.conf to systemd directory
+     copy:
+        src: "/tmp/10-kubeadm.conf.template"
+        dest: "/etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
+        mode: '+x'
+        remote_src: yes
+
+   - name: Downloading kubeadm
+     get_url:
+        url: https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kubeadm
+        dest: '{{ DOWNLOAD_DIR }}'
+        mode: '+x'
+
+   - name: Downloading kubelet
+     get_url:
+        url: https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kubelet
+        dest: '{{ DOWNLOAD_DIR }}'
+        mode: '+x'
+
+   - name: Downloading kubectl
+     get_url:
+        url: https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kubectl
+        dest: '{{ DOWNLOAD_DIR }}'
+        mode: '+x'
+        
    - name: running sysctl daemon-reload command
      become: yes
      command:
