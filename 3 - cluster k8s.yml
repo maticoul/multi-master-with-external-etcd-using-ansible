@@ -3,12 +3,6 @@
   tasks:
     - name: creating kubernetes directory
       file:
-        path: /tmp/master01/pki/etcd
-        state: directory
-        mode: "0755"
-
-    - name: creating kubernetes directory
-      file:
         path: /tmp/kubernetes/pki/etcd
         state: directory
         mode: "0755"
@@ -36,12 +30,6 @@
 
 - name: pki directory
   hosts: master01
-  vars:
-    user: securiport
-    controlPlaneEndpoint: 192.168.40.50
-    HOST0: 192.168.40.60
-    HOST1: 192.168.40.61
-    HOST2: 192.168.40.62
   become: yes
   tasks:
     - name: creating kubernetes directory
@@ -95,19 +83,19 @@
           controllerManager:
             extraArgs:
               flex-volume-plugin-dir: "/opt/libexec/kubernetes/kubelet-plugins/volume/exec/"
-        dest: /home/{{ user }}/kubeadm-config.yaml
+        dest: /home/{{ ansible_user }}/kubeadm-config.yaml
 
     - name: kubeadm init --config kubeadm-config.yaml
       become: yes
-      shell: kubeadm init --config /home/{{ user }}/kubeadm-config.yaml --upload-certs
+      shell: kubeadm init --config /home/{{ ansible_user }}/kubeadm-config.yaml --upload-certs
 
     - name: creating .kube directory
       become: yes
       file:
         path: $HOME/.kube
         state: directory
-        owner: "{{ user }}"
-        group: "{{ user }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
         mode: '0755'
 
     - name: copy file admin.conf
@@ -116,8 +104,8 @@
         src: /etc/kubernetes/admin.conf
         dest: $HOME/.kube/config
         remote_src: yes
-        owner: "{{ user }}"
-        group: "{{ user }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
         mode: '0755'
 
     - name: Creating calico configuracion file
@@ -145,13 +133,13 @@
       become: yes
       copy:
         content: "{{ calico_content }}"
-        dest: /home/{{ user }}/calico.yaml
+        dest: /home/{{ ansible_user }}/calico.yaml
 
     - name: Downloading calico using get_url
       become: yes
       get_url:
         url: https://raw.githubusercontent.com/projectcalico/calico/v3.26.0/manifests/custom-resources.yaml
-        dest: /home/{{ user }}/
+        dest: /home/{{ ansible_user }}/
 
     - name: install Tigera
       become: yes
@@ -159,21 +147,21 @@
 
     - name: install Calico
       become: yes
-      command: kubectl create -f /home/{{ user }}/custom-resources.yaml
+      command: kubectl create -f /home/{{ ansible_user }}/custom-resources.yaml
 
     - name: install Calico
       become: yes
-      command: kubectl apply -f /home/{{ user }}/calico.yaml
+      command: kubectl apply -f /home/{{ ansible_user }}/calico.yaml
 
     - name: Downloading metric server
       become: yes
       get_url:
         url: https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/high-availability-1.21+.yaml
-        dest: /home/{{ user }}/
+        dest: /home/{{ ansible_user }}/
 
     - name: Add kubelet-insecure-tls argument
       lineinfile:
-        path: /home/{{ user }}/high-availability-1.21+.yaml
+        path: /home/{{ ansible_user }}/high-availability-1.21+.yaml
         line: "        - --kubelet-insecure-tls"
         insertafter: "args:"
         state: present
@@ -185,67 +173,22 @@
 
     - name: installing metric
       become: yes
-      shell : kubectl apply -f /home/{{ user }}/high-availability-1.21+.yaml
+      shell : kubectl apply -f /home/{{ ansible_user }}/high-availability-1.21+.yaml
 
-    - name: Copy apiserver-etcd-client.crt
-      fetch:
-        src: /etc/kubernetes/pki/apiserver-etcd-client.crt
-        dest: /tmp/kubernetes/pki/
-        flat: yes
+    - name: Archiver les fichiers PKI de Kubernetes etcd03
+      archive:
+        path: /etc/kubernetes/
+        dest: /tmp/master01_kubernetes.tar
 
-    - name: copy apiserver-etcd-client.key
+    - name: Archiver les fichiers PKI de Kubernetes etcd03
       fetch:
-        src: /etc/kubernetes/pki/apiserver-etcd-client.key
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-
-    - name: Copy ca.crt to controller
-      fetch:
-        src: /etc/kubernetes/pki/ca.crt
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-    
-    - name: Copy ca.crt to controller
-      fetch:
-        src: /etc/kubernetes/pki/etcd/ca.crt
-        dest: /tmp/kubernetes/pki/etcd/
+        path: /tmp/master01_kubernetes.tar
+        dest: /tmp/master01_kubernetes.tar
         flat: yes
 
-    - name: Copy ca.key to controller
-      fetch:
-        src: /etc/kubernetes/pki/ca.key
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-
-    - name: Copy sa.key to controller
-      fetch:
-        src: /etc/kubernetes/pki/sa.key
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-
-    - name: Copy sa.pub to controller
-      fetch:
-        src: /etc/kubernetes/pki/sa.pub
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-
-    - name: Copy front-proxy-ca.crt to controller
-      fetch:
-        src: /etc/kubernetes/pki/front-proxy-ca.crt
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-
-    - name: Copy front-proxy-ca.key to controller
-      fetch:
-        src: /etc/kubernetes/pki/front-proxy-ca.key
-        dest: /tmp/kubernetes/pki/
-        flat: yes
-
-    - name: Copy admin.conf to controller
-      fetch:
-        src: /etc/kubernetes/admin.conf
-        dest: /tmp/kubernetes/
-        flat: yes
+    - name: get join command
+      shell: kubeadm token create --print-join-command
+      register: join_command_raw
 
     - name: get join command
       shell: kubeadm token create --print-join-command
@@ -265,11 +208,15 @@
         state: directory
         mode: '0755'
 
-    - name: Create directory sub1
+    - name: Copier l'archive des fichiers PKI dans le etcd03
       copy:
-        src: /tmp/kubernetes/
+        src: /home/{{ ansible_user }}/master01_kubernetes.tar
+        dest: /home/{{ ansible_user }}/
+    
+    - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
+      unarchive:
+        src:  /home/{{ ansible_user }}/master01_kubernetes.tar
         dest: /etc/kubernetes/
-        mode: '0755'
 
     - name: change pki groupe own
       file:
