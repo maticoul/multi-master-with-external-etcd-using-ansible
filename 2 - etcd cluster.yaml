@@ -186,23 +186,23 @@
         state: absent
       with_items: "{{ files_to_delete.files }}"
 
-    - name: Archiver les fichiers PKI de Kubernetes etcd03
+    - name: Archive Kubernetes PKI Files etcd03
       archive:
         path: /tmp/{{ HOST2 }}/
         dest: /tmp/{{ HOST2 }}/etcd03.tar
 
-    - name: Copier l'archive des fichiers PKI dans le controller
+    - name: Copy the archive of PKI files to the controller
       fetch:
         src: /tmp/{{ HOST2 }}/etcd03.tar
         dest: /home/{{ HOST2 }}/
         flat: yes
 
-    - name: Archiver les fichiers PKI de Kubernetes etcd02
+    - name: Archive Kubernetes PKI Files etcd02
       archive:
         path: /tmp/{{ HOST1 }}/
         dest: /tmp/{{ ansible_user }}/etcd02.tar
 
-    - name: Copier l'archive des fichiers PKI dans le controller
+    - name: Copy the archive of PKI files to the controller
       fetch:
         src: /tmp/{{ HOST1 }}/etcd02.tar
         dest: /home/{{ ansible_user }}/
@@ -220,12 +220,12 @@
         group: root
         mode: '0755'
 
-    - name: Copier l'archive des fichiers PKI dans le etcd03
+    - name: Copy the archive of PKI files in etcd03
       copy:
         src: /home/securiport/etcd03.tar
         dest: /home/{{ ansible_user }}/
 
-    - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
+    - name: Extract the archive of PKI files in kubernetes/pki
       unarchive:
         src:  /home/{{ ansible_user }}/etcd03.tar
         dest: /etc/kubernetes/
@@ -251,12 +251,12 @@
         group: root
         mode: '0755'
 
-    - name: Copier l'archive des fichiers PKI dans le etcd03
+    - name: Copy the archive of PKI files in the etcd02
       copy:
         src: /home/{{ ansible_user }}/etcd02.tar
         dest: /home/{{ ansible_user }}/
 
-    - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
+    - name: Extract the archive of PKI files in kubernetes/pki
       unarchive:
         src:  /home/{{ ansible_user }}/etcd02.tar
         dest: /etc/kubernetes/
@@ -271,8 +271,6 @@
         mode: '0644'
 
 - name: pki directory
-  vars:
-    HOST0: 192.168.40.60
   hosts: etcd01
   tasks:
     - name: init phase etcd local etcd01
