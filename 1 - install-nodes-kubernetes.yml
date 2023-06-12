@@ -1,11 +1,5 @@
 - name: Download kubeadm from storage.googleapis.com
   hosts: workers
-  vars:
-    CNI_VERSION: v1.0.1
-    CRICTL_VERSION: v1.23.0
-    RELEASE_VERSION: v0.4.0
-    DOWNLOAD_DIR: /opt/bin
-    RELEASE: v1.26.0
   tasks:
    - name: Creating a file /etc/modules-load.d/k8s.conf
      become: yes
