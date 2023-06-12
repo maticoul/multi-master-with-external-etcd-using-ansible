@@ -175,12 +175,12 @@
       become: yes
       shell : kubectl apply -f /home/{{ ansible_user }}/high-availability-1.21+.yaml
 
-    - name: Archiver les fichiers PKI de Kubernetes etcd03
+    - name: archive of kubernetes directory
       archive:
         path: /etc/kubernetes/
         dest: /tmp/master01_kubernetes.tar
 
-    - name: Archiver les fichiers PKI de Kubernetes etcd03
+    - name: Copy the archive of Kubernetes directory to controller
       fetch:
         path: /tmp/master01_kubernetes.tar
         dest: /tmp/master01_kubernetes.tar
@@ -208,12 +208,12 @@
         state: directory
         mode: '0755'
 
-    - name: Copier l'archive des fichiers PKI dans le etcd03
+    - name: Copy the archive of Kubernetes directory to masters
       copy:
         src: /home/{{ ansible_user }}/master01_kubernetes.tar
         dest: /home/{{ ansible_user }}/
     
-    - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
+    - name: Extract the archive files in kubernetes
       unarchive:
         src:  /home/{{ ansible_user }}/master01_kubernetes.tar
         dest: /etc/kubernetes/
