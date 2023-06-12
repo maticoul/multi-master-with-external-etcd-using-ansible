@@ -22,21 +22,6 @@
   
 - name: updates HOST0, HOST1 et HOST2
   hosts: etcd01
-  vars:
-    HOST0: 192.168.40.60
-    HOST1: 192.168.40.61
-    HOST2: 192.168.40.62
-    NAME0: etcd01
-    NAME1: etcd02
-    NAME2: etcd03
-    HOSTS:
-      - "{{ HOST0 }}"
-      - "{{ HOST1 }}"
-      - "{{ HOST2 }}"
-    NAMES:
-      - "{{ NAME0 }}"
-      - "{{ NAME1 }}"
-      - "{{ NAME2 }}"
   tasks:
     - name: Create temporary directory
       file:
@@ -209,18 +194,18 @@
     - name: Copier l'archive des fichiers PKI dans le controller
       fetch:
         src: /tmp/{{ HOST2 }}/etcd03.tar
-        dest: /home/securiport/
+        dest: /home/{{ HOST2 }}/
         flat: yes
 
     - name: Archiver les fichiers PKI de Kubernetes etcd02
       archive:
         path: /tmp/{{ HOST1 }}/
-        dest: /tmp/{{ HOST1 }}/etcd02.tar
+        dest: /tmp/{{ ansible_user }}/etcd02.tar
 
     - name: Copier l'archive des fichiers PKI dans le controller
       fetch:
         src: /tmp/{{ HOST1 }}/etcd02.tar
-        dest: /home/securiport/
+        dest: /home/{{ ansible_user }}/
         flat: yes
 
 - name: pki directory
@@ -238,19 +223,19 @@
     - name: Copier l'archive des fichiers PKI dans le etcd03
       copy:
         src: /home/securiport/etcd03.tar
-        dest: /home/securiport/
+        dest: /home/{{ ansible_user }}/
 
     - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
       unarchive:
-        src:  /home/securiport/etcd03.tar
+        src:  /home/{{ ansible_user }}/etcd03.tar
         dest: /etc/kubernetes/
 
     - name: Copy kubeadmcfg.yaml file
       copy:
         src: /etc/kubernetes/kubeadmcfg.yaml
-        dest: /home/securiport/
-        owner: securiport
-        group: securiport
+        dest: /home/{{ ansible_user }}/
+        owner: {{ ansible_user }}
+        group: {{ ansible_user }}
         remote_src: yes
         mode: '0644'
 
@@ -268,20 +253,20 @@
 
     - name: Copier l'archive des fichiers PKI dans le etcd03
       copy:
-        src: /home/securiport/etcd02.tar
-        dest: /home/securiport/
+        src: /home/{{ ansible_user }}/etcd02.tar
+        dest: /home/{{ ansible_user }}/
 
     - name: Extraire l'archive des fichiers PKI dans kubernetes/pki
       unarchive:
-        src:  /home/securiport/etcd02.tar
+        src:  /home/{{ ansible_user }}/etcd02.tar
         dest: /etc/kubernetes/
 
     - name: Copy kubeadmcfg.yaml file
       copy:
         src: /etc/kubernetes/kubeadmcfg.yaml
-        dest: /home/securiport/
-        owner: securiport
-        group: securiport
+        dest: /home/{{ ansible_user }}/
+        owner: {{ ansible_user }}
+        group: {{ ansible_user }}
         remote_src: yes
         mode: '0644'
 
@@ -298,11 +283,11 @@
   gather_facts: false
   tasks:
     - name: init phase etcd local etcd02
-      shell: kubeadm init phase etcd local --config=/home/securiport/kubeadmcfg.yaml
+      shell: kubeadm init phase etcd local --config=/home/{{ ansible_user }}/kubeadmcfg.yaml
 
 - name: init phase etcd local etcd03
   hosts: etcd03
   gather_facts: false
   tasks:
     - name: init phase etcd local etcd03
-      shell: kubeadm init phase etcd local --config=/home/securiport/kubeadmcfg.yaml
+      shell: kubeadm init phase etcd local --config=/home/{{ ansible_user }}/kubeadmcfg.yaml
