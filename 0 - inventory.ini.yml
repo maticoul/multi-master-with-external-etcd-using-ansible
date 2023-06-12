@@ -1,22 +1,3 @@
-# This is the default ansible 'hosts' file.
-#
-# It should live in /etc/ansible/hosts
-#
-#   - Comments begin with the '#' character
-#   - Blank lines are ignored
-#   - Groups of hosts are delimited by [header] elements
-#   - You can enter hostnames or ip addresses
-#   - A hostname/ip can be a member of multiple groups
-
-# Ex 1=Ungrouped hosts, specify before any group headers.
-
-#green.example.com
-#blue.example.com
-#192.168.100.1
-#192.168.100.10
-
-# Ex 2=A collection of hosts belonging to the 'webservers' group
-
 [kubernetes]
 master01 ansible_host=master01 
 master02 ansible_host=master02    
@@ -48,11 +29,11 @@ worker03 ansible_host=worker03
 [all:vars]
 ansible_become=true
 ansible_python_interpreter=/opt/bin/python/bin/pypy
-controlPlaneEndpoint=192.168.40.51
+controlPlaneEndpoint=x.x.x.x
 clusterName=lab-cluster
-HOST0 192.168.40.60
-HOST1=192.168.40.61
-HOST2=192.168.40.62
+HOST0=x.x.x.x.x
+HOST1=x.x.x.x.x
+HOST2=x.x.x.x.x
 NAME0=etcd01
 NAME1=etcd02
 NAME2=etcd03
@@ -65,24 +46,9 @@ DOWNLOAD_DIR=/opt/bin
 RELEASE=v1.26.5
 cidr=192.168.0.0/16
 podSubnet=192.168.0.0/16
-ansible_user=securiport
-#ansible_password=Securiport
+ansible_user=user
+#ansible_password=password
 
-
-#[webservers]
-#alpha.example.org
-#beta.example.org
-#192.168.1.100
-#192.168.1.110
-
-# If you have multiple hosts following a pattern you can specify
-# them like this:
-
-#www[001:006].example.com
-
-# Ex 3=A collection of database servers in the 'dbservers' group
-
-#[dbservers]
 #
 #db01.intranet.mydomain.net
 #db02.intranet.mydomain.net
