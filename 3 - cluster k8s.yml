@@ -69,7 +69,7 @@
           kind: ClusterConfiguration
           networking:
             podSubnet: 192.168.0.0/16
-          controlPlaneEndpoint: "{{ controlPlaneEndpoint }}:9443"
+          controlPlaneEndpoint: "{{ controlPlaneEndpoint }}:6443"
           etcd:
             external:
               endpoints:
@@ -217,6 +217,7 @@
       unarchive:
         src:  /home/{{ ansible_user }}/master01_kubernetes.tar
         dest: /etc/kubernetes/
+        remote_src: yes
 
     - name: change pki groupe own
       file:
@@ -234,5 +235,28 @@
   tasks:
     - name: join cluster
       shell: "{{ hostvars['master01'].join_command }} --ignore-preflight-errors all  >> masters_joined.txt"
+
+- name: copying kubeconfig from master01 to controller 
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: copying kubeconfig from master01 to controller 
+      become: yes
+      file:
+        path: $HOME/.kube
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: copy file admin.conf
+      become: yes
+      fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: $HOME/.kube/config
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
 
     
